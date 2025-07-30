@@ -1,0 +1,10 @@
+{
+  "port": 3001,
+  "host": "0.0.0.0",
+  "watch": true,
+  "no-cors": false,
+  "no-gzip": false,
+  "no-clipboard": false,
+  "no-body-parser": false,
+  "read-only": false
+} 

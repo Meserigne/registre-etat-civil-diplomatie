@@ -1,0 +1,54 @@
+{
+  "name": "registre-etat-civil",
+  "version": "0.1.0",
+  "homepage": "https://meserigne.github.io/registre-etat-civil-diplomatie",
+  "private": true,
+  "description": "Système de gestion du registre d'état civil",
+  "main": "index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "server": "json-server --watch db.json --port 3001",
+    "publish": "node scripts/publish-to-github.js",
+    "publish-simple": "node scripts/publish-simple.js",
+    "connect-github": "node scripts/connect-github.js",
+    "setup-github": "node scripts/setup-github-auth.js",
+    "connect-mrscoulibaly": "node scripts/connect-mrscoulibaly.js",
+    "deploy-meserigne": "node scripts/deploy-to-meserigne.js",
+    "redeploy-zero": "node scripts/redeploy-zero.js",
+    "delete-all-and-redeploy": "node scripts/delete-all-and-redeploy.js",
+    "fix-github": "node scripts/fix-github-deployment.js",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.0",
+    "html2canvas": "^1.4.1",
+    "json-server": "^1.0.0-beta.3",
+    "jspdf": "^3.0.1",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "gh-pages": "^6.1.1",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
