@@ -1,0 +1,17 @@
+{
+  "files": {
+    "main.css": "/registre-etat-civil-diplomatie/static/css/main.b984443f.css",
+    "main.js": "/registre-etat-civil-diplomatie/static/js/main.33d6b026.js",
+    "static/js/977.2d1b9f48.chunk.js": "/registre-etat-civil-diplomatie/static/js/977.2d1b9f48.chunk.js",
+    "static/js/732.07fa0ae9.chunk.js": "/registre-etat-civil-diplomatie/static/js/732.07fa0ae9.chunk.js",
+    "index.html": "/registre-etat-civil-diplomatie/index.html",
+    "main.b984443f.css.map": "/registre-etat-civil-diplomatie/static/css/main.b984443f.css.map",
+    "main.33d6b026.js.map": "/registre-etat-civil-diplomatie/static/js/main.33d6b026.js.map",
+    "977.2d1b9f48.chunk.js.map": "/registre-etat-civil-diplomatie/static/js/977.2d1b9f48.chunk.js.map",
+    "732.07fa0ae9.chunk.js.map": "/registre-etat-civil-diplomatie/static/js/732.07fa0ae9.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.b984443f.css",
+    "static/js/main.33d6b026.js"
+  ]
+}

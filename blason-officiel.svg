@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 360" width="300" height="360">
+  <!-- Fond blanc -->
+  <rect width="300" height="360" fill="white"/>
+  
+  <!-- Écusson central vert pointu -->
+  <path d="M150 60 L240 60 L240 240 L150 210 L60 240 L60 60 Z" fill="#059669" stroke="#047857" stroke-width="2"/>
+  
+  <!-- Tête d'éléphant stylisée en blanc -->
+  <circle cx="150" cy="135" r="25" fill="white"/>
+  <circle cx="150" cy="135" r="20" fill="#059669"/>
+  <text x="150" y="145" text-anchor="middle" font-size="20" fill="white" font-weight="bold">🐘</text>
+  
+  <!-- Palmier gauche (supporter) -->
+  <rect x="15" y="90" width="8" height="150" fill="#D97706" transform="rotate(-15 19 165)"/>
+  <ellipse cx="25" cy="75" rx="12" ry="6" fill="#F59E0B" transform="rotate(-30 25 75)"/>
+  <ellipse cx="18" cy="66" rx="9" ry="4.5" fill="#F59E0B" transform="rotate(-20 18 66)"/>
+  
+  <!-- Palmier droit (supporter) -->
+  <rect x="277" y="90" width="8" height="150" fill="#D97706" transform="rotate(15 281 165)"/>
+  <ellipse cx="275" cy="75" rx="12" ry="6" fill="#F59E0B" transform="rotate(30 275 75)"/>
+  <ellipse cx="282" cy="66" rx="9" ry="4.5" fill="#F59E0B" transform="rotate(20 282 66)"/>
+  
+  <!-- Soleil levant (cimier) -->
+  <ellipse cx="150" cy="15" rx="60" ry="24" fill="#F59E0B"/>
+  <circle cx="150" cy="15" r="9" fill="#D97706"/>
+  <text x="150" y="24" text-anchor="middle" font-size="24" fill="#92400E">☀️</text>
+  
+  <!-- Ruban avec devise (listel) -->
+  <rect x="30" y="285" width="240" height="45" fill="#F59E0B" rx="4"/>
+  <text x="150" y="305" text-anchor="middle" font-size="18" fill="black" font-weight="bold">
+    RÉPUBLIQUE
+  </text>
+  <text x="150" y="325" text-anchor="middle" font-size="18" fill="black" font-weight="bold">
+    DE CÔTE D'IVOIRE
+  </text>
+</svg> 
