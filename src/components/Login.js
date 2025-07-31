@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Shield, User, Lock, Building, Flag } from 'lucide-react';
+import { LogoMinistereComplet } from './LogoMinistere';
 
 const Login = ({ onLogin }) => {
+  alert('Page de connexion chargée - Connectez-vous pour voir l\'interface');
+  
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -48,34 +51,7 @@ const Login = ({ onLogin }) => {
         {/* En-tête officiel */}
         <div className="text-center mb-8">
           <div className="flex justify-center items-center mb-4">
-            <div className="relative">
-              {/* Logo officiel du Ministère */}
-              <div className="w-20 h-20 bg-gradient-to-br from-green-600 to-green-800 rounded-full flex items-center justify-center relative shadow-lg">
-                {/* Cercle extérieur doré */}
-                <div className="absolute inset-0 border-2 border-yellow-500 rounded-full animate-pulse"></div>
-                
-                {/* Cercle blanc */}
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center relative">
-                  {/* Écusson central */}
-                  <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-                    {/* Éléphant d'Afrique (symbole de la Côte d'Ivoire) */}
-                    <div className="text-white text-2xl font-bold">🐘</div>
-                  </div>
-                  
-                  {/* Rayons dorés */}
-                  <div className="absolute inset-0">
-                    <div className="w-16 h-16 border border-yellow-400 rounded-full"></div>
-                  </div>
-                </div>
-                
-                {/* Étoiles dorées (symbole de la République) */}
-                <div className="absolute -top-1 -right-1 text-yellow-500 text-xs">⭐</div>
-                <div className="absolute -bottom-1 -left-1 text-yellow-500 text-xs">⭐</div>
-              </div>
-              
-              {/* Effet de brillance */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white to-transparent opacity-20 rounded-full"></div>
-            </div>
+            <LogoMinistereComplet size="xl" className="text-green-800" />
           </div>
           
           <h1 className="text-2xl font-bold text-green-800 mb-2">

@@ -4,6 +4,7 @@ import {
   User, BarChart3, Calendar, PieChart, CheckCircle, Clock, Eye, AlertTriangle,
   Copy, Printer, X, Save
 } from 'lucide-react';
+import { LogoHeader } from './LogoMinistere';
 import GestionAgents from './GestionAgents';
 import GestionUtilisateurs from './GestionUtilisateurs';
 import GestionActes from './GestionActes';
@@ -13,6 +14,7 @@ import LoginAgent from './LoginAgent';
 import InterfaceAgent from './InterfaceAgent';
 import Statistiques from './Statistiques';
 import SauvegardeAutomatique from './SauvegardeAutomatique';
+import GestionSauvegarde from './GestionSauvegarde';
 
 import { dossiersAPI, modificationsAPI } from '../services/api';
 
@@ -39,10 +41,12 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
 
   // États du formulaire
   const [formData, setFormData] = useState({
+    numeroRegistre: '',
     nomUsager: '',
     prenomUsager: '',
     dateNaissance: '',
     lieuNaissance: '',
+    sexe: '',
     adresse: '',
     telephone: '',
     email: '',
@@ -920,9 +924,11 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-4">
+              <LogoHeader className="text-white" />
+              <div className="border-l border-green-400 h-12 mx-4"></div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Registre d'État Civil</h1>
-                <p className="text-green-100">Ministère des Affaires Étrangères - Diplomatie Ivoirienne</p>
+                <p className="text-green-100">Diplomatie Ivoirienne</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -1655,15 +1661,10 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
             </div>
           )}
 
-        {/* Section Sauvegarde Automatique */}
+        {/* Section Gestion des Sauvegardes */}
         {activeTab === 'sauvegarde' && (
-          <SauvegardeAutomatique 
-                dossiers={dossiers}
-            agents={agents}
-            utilisateurs={utilisateurs}
-            modifications={modifications}
-              />
-          )}
+          <GestionSauvegarde />
+        )}
         </div>
       )}
 
@@ -1683,15 +1684,27 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
                 <div>
                   <h4 className="text-md font-medium text-gray-900 mb-4">Informations de l'Usager</h4>
                   <div className="space-y-4">
-                <div>
-                      <label className="block text-sm font-medium text-gray-700">Nom</label>
-                  <input
-                    type="text"
-                    value={formData.nomUsager}
-                    onChange={(e) => setFormData({...formData, nomUsager: e.target.value})}
+
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Numéro du registre</label>
+                      <input
+                        type="text"
+                        value={formData.numeroRegistre || ''}
+                        onChange={(e) => setFormData({...formData, numeroRegistre: e.target.value})}
                         className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                        placeholder="Ex: REG-2025-001"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Nom</label>
+                      <input
+                        type="text"
+                        value={formData.nomUsager}
+                        onChange={(e) => setFormData({...formData, nomUsager: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                 <div>
                       <label className="block text-sm font-medium text-gray-700">Prénom</label>
                   <input
@@ -1730,6 +1743,19 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
                       ))}
                     </select>
                   </div>
+                  
+                  <div>
+                      <label className="block text-sm font-medium text-gray-700">Sexe</label>
+                      <select
+                        value={formData.sexe || ''}
+                        onChange={(e) => setFormData({...formData, sexe: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Sélectionner le sexe</option>
+                        <option value="Masculin">Masculin</option>
+                        <option value="Féminin">Féminin</option>
+                      </select>
+                    </div>
               </div>
               </div>
 

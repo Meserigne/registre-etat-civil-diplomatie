@@ -26,10 +26,12 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
 
   // États du formulaire
   const [formData, setFormData] = useState({
+    numeroRegistre: '',
     nomUsager: '',
     prenomUsager: '',
     dateNaissance: '',
     lieuNaissance: '',
+    sexe: '',
     nationalite: '',
     adresse: '',
     telephone: '',
@@ -105,10 +107,12 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
     const dateRetrait = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
     setFormData({
+      numeroRegistre: '',
       nomUsager: '',
       prenomUsager: '',
       dateNaissance: '',
       lieuNaissance: '',
+      sexe: '',
       nationalite: '',
       adresse: '',
       telephone: '',
@@ -592,6 +596,18 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
                 <div>
                   <h4 className="text-md font-medium text-gray-900 mb-4">Informations de l'Usager</h4>
                   <div className="space-y-4">
+
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Numéro du registre</label>
+                      <input
+                        type="text"
+                        value={formData.numeroRegistre || ''}
+                        onChange={(e) => setFormData({...formData, numeroRegistre: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ex: REG-2025-001"
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Nom</label>
                       <input
@@ -627,6 +643,19 @@ const RegistreEtatCivil = ({ currentUser, onLogout, activeTab, setActiveTab }) =
                         onChange={(e) => setFormData({...formData, lieuNaissance: e.target.value})}
                         className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Sexe</label>
+                      <select
+                        value={formData.sexe || ''}
+                        onChange={(e) => setFormData({...formData, sexe: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Sélectionner le sexe</option>
+                        <option value="Masculin">Masculin</option>
+                        <option value="Féminin">Féminin</option>
+                      </select>
                     </div>
                   </div>
                 </div>

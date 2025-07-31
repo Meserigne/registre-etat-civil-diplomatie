@@ -9,15 +9,14 @@ const CreationActes = ({ dossier, onClose }) => {
     officier: '',
     observations: '',
     typeActe: dossier?.demandes?.[0]?.typeDossier || 'Extrait acte Naissance',
+    // Informations consulaire
+    circonscriptionConsulaire: 'DANEMARK',
+    centreDe: 'COPENHAGUE',
+    numeroRegistre: dossier?.numeroRegistre || '',
     // Informations des parents
     nomPere: '',
-    dateNaissancePere: '',
-    lieuNaissancePere: '',
     professionPere: '',
-    adressePere: '',
     nomMere: '',
-    dateNaissanceMere: '',
-    lieuNaissanceMere: '',
     professionMere: ''
   });
 
@@ -35,10 +34,14 @@ const CreationActes = ({ dossier, onClose }) => {
 
   useEffect(() => {
     if (dossier) {
+      console.log('Dossier reçu:', dossier);
+      console.log('Numéro de registre du dossier:', dossier.numeroRegistre);
+      
       setActeData(prev => ({
         ...prev,
         typeActe: dossier.demandes?.[0]?.typeDossier || 'Extrait acte Naissance',
-        numeroActe: generateNumeroActe(dossier.demandes?.[0]?.typeDossier || 'Extrait acte Naissance')
+        numeroActe: generateNumeroActe(dossier.demandes?.[0]?.typeDossier || 'Extrait acte Naissance'),
+        numeroRegistre: dossier.numeroRegistre || dossier.numeroSuivi || ''
       }));
     }
   }, [dossier]);
@@ -208,58 +211,102 @@ const CreationActes = ({ dossier, onClose }) => {
               </div>
             </div>
 
+            {/* Informations consulaire */}
+            <div>
+              <h4 className="text-md font-medium text-gray-900 mb-4">Informations Consulaire</h4>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">CIRCONSCRIPTION CONSULAIRE DE</label>
+                  <input
+                    type="text"
+                    value={acteData.circonscriptionConsulaire}
+                    onChange={(e) => setActeData({...acteData, circonscriptionConsulaire: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ex: DANEMARK"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">CENTRE DE</label>
+                  <input
+                    type="text"
+                    value={acteData.centreDe}
+                    onChange={(e) => setActeData({...acteData, centreDe: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ex: COPENHAGUE"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Numéro du registre</label>
+                  <input
+                    type="text"
+                    value={acteData.numeroRegistre}
+                    onChange={(e) => setActeData({...acteData, numeroRegistre: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Numéro automatique du dossier"
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Informations des parents */}
             <div>
               <h4 className="text-md font-medium text-gray-900 mb-4">Informations des Parents</h4>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Père */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Nom du père</label>
-                  <input
-                    type="text"
-                    value={acteData.nomPere}
-                    onChange={(e) => setActeData({...acteData, nomPere: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <h5 className="text-sm font-medium text-gray-700 mb-3">Père</h5>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Nom</label>
+                      <input
+                        type="text"
+                        value={acteData.nomPere}
+                        onChange={(e) => setActeData({...acteData, nomPere: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Nom du père"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Profession</label>
+                      <input
+                        type="text"
+                        value={acteData.professionPere}
+                        onChange={(e) => setActeData({...acteData, professionPere: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Profession du père"
+                      />
+                    </div>
+                  </div>
                 </div>
-                
+
+                {/* Mère */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Date de naissance du père</label>
-                  <input
-                    type="date"
-                    value={acteData.dateNaissancePere}
-                    onChange={(e) => setActeData({...acteData, dateNaissancePere: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Lieu de naissance du père</label>
-                  <input
-                    type="text"
-                    value={acteData.lieuNaissancePere}
-                    onChange={(e) => setActeData({...acteData, lieuNaissancePere: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Profession du père</label>
-                  <input
-                    type="text"
-                    value={acteData.professionPere}
-                    onChange={(e) => setActeData({...acteData, professionPere: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Adresse du père</label>
-                  <input
-                    type="text"
-                    value={acteData.adressePere}
-                    onChange={(e) => setActeData({...acteData, adressePere: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <h5 className="text-sm font-medium text-gray-700 mb-3">Mère</h5>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Nom</label>
+                      <input
+                        type="text"
+                        value={acteData.nomMere}
+                        onChange={(e) => setActeData({...acteData, nomMere: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Nom de la mère"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Profession</label>
+                      <input
+                        type="text"
+                        value={acteData.professionMere}
+                        onChange={(e) => setActeData({...acteData, professionMere: e.target.value})}
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Profession de la mère"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

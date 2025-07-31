@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Printer, Copy, Edit, Trash2, Plus, Search, Filter, Eye, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { 
+  FileText, Download, Printer, Copy, Edit, Trash2, Plus, Search, Filter, 
+  Eye, CheckCircle, AlertTriangle, X, Calendar, User, Clock, MapPin, 
+  FileCheck, FileX, FilePlus, BarChart3, Settings, RefreshCw, Filter as FilterIcon
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import FormulaireActeOriginal from './FormulaireActeOriginal';
@@ -14,9 +18,16 @@ const GestionActes = ({ dossiers, onClose }) => {
   const [editingActe, setEditingActe] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [selectedActe, setSelectedActe] = useState(null);
   const [selectedDossier, setSelectedDossier] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [pdfPreviewData, setPdfPreviewData] = useState(null);
+  const [viewMode, setViewMode] = useState('table'); // 'table' ou 'cards'
+  const [sortBy, setSortBy] = useState('date'); // 'date', 'name', 'type'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' ou 'desc'
+  
   const [acteData, setActeData] = useState({
     typeActe: '',
     numeroActe: '',
@@ -27,7 +38,6 @@ const GestionActes = ({ dossiers, onClose }) => {
     centreDe: '',
     officier: '',
     observations: '',
-    // Informations des parents
     nomPere: '',
     lieuNaissancePere: '',
     professionPere: '',
@@ -44,20 +54,41 @@ const GestionActes = ({ dossiers, onClose }) => {
     'Copie intégrale Naissance',
     'Copie intégrale Décès',
     'Livret de famille',
-    'Acte Consulaire (Nouveau Format)', // <-- Ajouté
+    'Acte Consulaire (Nouveau Format)',
     'Rectification',
     'Transcription'
+  ];
+
+  const statusOptions = [
+    'Tous les statuts',
+    'En cours',
+    'Terminé',
+    'En attente',
+    'Prêt pour création d\'acte',
+    'Acte créé'
   ];
 
   // Fonction pour obtenir les couleurs des statuts
   const getStatusColor = (statut) => {
     switch (statut) {
-      case 'En cours': return 'bg-blue-100 text-blue-800';
-      case 'Terminé': return 'bg-green-100 text-green-800';
-      case 'En attente': return 'bg-yellow-100 text-yellow-800';
-      case 'Prêt pour création d\'acte': return 'bg-purple-100 text-purple-800';
-      case 'Acte créé': return 'bg-indigo-100 text-indigo-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'En cours': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Terminé': return 'bg-green-100 text-green-800 border-green-200';
+      case 'En attente': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'Prêt pour création d\'acte': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Acte créé': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  // Fonction pour obtenir l'icône du statut
+  const getStatusIcon = (statut) => {
+    switch (statut) {
+      case 'En cours': return <Clock className="w-4 h-4" />;
+      case 'Terminé': return <CheckCircle className="w-4 h-4" />;
+      case 'En attente': return <AlertTriangle className="w-4 h-4" />;
+      case 'Prêt pour création d\'acte': return <FileCheck className="w-4 h-4" />;
+      case 'Acte créé': return <FilePlus className="w-4 h-4" />;
+      default: return <FileX className="w-4 h-4" />;
     }
   };
 
@@ -71,6 +102,16 @@ const GestionActes = ({ dossiers, onClose }) => {
     const savedActes = JSON.parse(localStorage.getItem('registreActes') || '[]');
     setActes(savedActes);
   }, []);
+
+  // Statistiques des actes
+  const getStats = () => {
+    const totalActes = actes.length;
+    const actesConsulaires = actes.filter(a => a.typeActe === 'Acte Consulaire (Nouveau Format)').length;
+    const actesOriginaux = actes.filter(a => a.typeActe !== 'Acte Consulaire (Nouveau Format)').length;
+    const dossiersEligibles = dossiers.filter(d => canCreateActe(d.statut)).length;
+    
+    return { totalActes, actesConsulaires, actesOriginaux, dossiersEligibles };
+  };
 
   const generateNumeroActe = (type) => {
     const currentYear = new Date().getFullYear();
@@ -92,7 +133,7 @@ const GestionActes = ({ dossiers, onClose }) => {
       case 'Livret de famille':
         return `LF-${currentYear}-${random}`;
       case 'Acte Consulaire (Nouveau Format)':
-        return `65-001-COP/86`; // Format spécifique pour l'acte consulaire
+        return `65-001-COP/86`;
       case 'Rectification':
         return `RECT-${currentYear}-${random}`;
       case 'Transcription':
@@ -227,7 +268,7 @@ const GestionActes = ({ dossiers, onClose }) => {
       dossierId: selectedDossier.id,
       dossierInfo: selectedDossier,
       ...acteData,
-      observations: autoObservation, // Observation automatique
+      observations: autoObservation,
       dateCreationActe: new Date().toISOString(),
       statut: 'Créé'
     };
@@ -241,7 +282,7 @@ const GestionActes = ({ dossiers, onClose }) => {
       d.id === selectedDossier.id ? { 
         ...d, 
         statut: 'Acte créé',
-        observations: autoObservation // Mettre à jour l'observation du dossier
+        observations: autoObservation
       } : d
     );
     localStorage.setItem('registreDossiers', JSON.stringify(updatedDossiers));
@@ -250,7 +291,6 @@ const GestionActes = ({ dossiers, onClose }) => {
     setSelectedDossier(null);
     resetForm();
     
-    // Notification de succès
     if (window.showNotification) {
       window.showNotification(`Acte "${acteData.typeActe}" créé avec succès !`, 'success');
     } else {
@@ -287,7 +327,6 @@ const GestionActes = ({ dossiers, onClose }) => {
       setActes(updatedActes);
       localStorage.setItem('registreActes', JSON.stringify(updatedActes));
       
-      // Notification de succès
       if (window.showNotification) {
         window.showNotification('Acte supprimé avec succès !', 'success');
       } else {
@@ -295,6 +334,53 @@ const GestionActes = ({ dossiers, onClose }) => {
       }
     }
   };
+
+  // Fonction pour trier les actes
+  const sortActes = (actesToSort) => {
+    return actesToSort.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.dateCreation);
+          bValue = new Date(b.dateCreation);
+          break;
+        case 'name':
+          aValue = `${a.dossierInfo?.nomUsager || ''} ${a.dossierInfo?.prenomUsager || ''}`.toLowerCase();
+          bValue = `${b.dossierInfo?.nomUsager || ''} ${b.dossierInfo?.prenomUsager || ''}`.toLowerCase();
+          break;
+        case 'type':
+          aValue = a.typeActe.toLowerCase();
+          bValue = b.typeActe.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  };
+
+  // Filtrer et trier les actes
+  const filteredAndSortedActes = sortActes(
+    actes.filter(acte => {
+      const matchesSearch = !searchTerm || 
+        (acte.dossierInfo?.nomUsager && acte.dossierInfo.nomUsager.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (acte.dossierInfo?.prenomUsager && acte.dossierInfo.prenomUsager.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (acte.numeroActe && acte.numeroActe.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesType = !filterType || acte.typeActe === filterType;
+      const matchesStatus = !filterStatus || filterStatus === 'Tous les statuts' || acte.dossierInfo?.statut === filterStatus;
+      
+      return matchesSearch && matchesType && matchesStatus;
+    })
+  );
+
+  const stats = getStats();
 
   const generateActeHTML = (acte) => {
     const dossier = acte.dossierInfo || {};
@@ -315,15 +401,12 @@ const GestionActes = ({ dossiers, onClose }) => {
       });
     };
 
-    // Obtenir l'année actuelle pour l'en-tête
     const currentYear = new Date().getFullYear();
 
-    // Si c'est un acte consulaire, utiliser le format spécial
     if (acte.typeActe === 'Acte Consulaire (Nouveau Format)') {
       return generateActeConsulaireHTML(acte, dossier, formatDate, getCurrentTime, currentYear);
     }
 
-    // Format standard pour les autres types d'actes
     return `
       <!DOCTYPE html>
       <html lang="fr">
@@ -361,27 +444,27 @@ const GestionActes = ({ dossiers, onClose }) => {
                   line-height: 1.4;
                   font-size: 11pt;
                   min-height: 29.7cm;
-                  padding-bottom: 20cm; /* Ajout de la marge de 20cm en bas */
+                  padding-bottom: 5cm; /* Ajout de 3cm d'espace en bas (2cm + 3cm) */
               }
               
               .document-container {
                   background: white;
                   padding: 1.5cm;
-                  padding-top: 0.5cm; /* Réduction de la marge supérieure de 5cm */
+                  padding-top: 0.5cm;
                   box-shadow: 0 8px 30px rgba(0,0,0,0.1);
                   border-radius: 8px;
                   border: 1px solid #e0e0e0;
-                  margin-bottom: 20cm; /* Marge supplémentaire pour le conteneur */
+                  margin-bottom: 5cm; /* Ajout de 3cm d'espace en bas (2cm + 3cm) */
               }
               
               .header {
                   text-align: left;
-                  margin-bottom: 0.5cm;
+                  margin-bottom: 0.3cm; /* Réduction de 0.5cm à 0.3cm */
                   font-weight: bold;
                   text-transform: uppercase;
                   font-size: 12pt;
                   padding-left: 0cm;
-                  margin-top: 3cm;
+                  margin-top: 2cm; /* Réduction significative de 5cm à 2cm */
               }
               
               .separator {
@@ -437,7 +520,7 @@ const GestionActes = ({ dossiers, onClose }) => {
               }
               
               .content {
-                  margin: -9cm 0 0.4cm 0;
+                  margin: -8cm 0 0.3cm 0; /* Décalage de 5cm vers le haut (-3cm à -8cm) */
                   text-align: left;
                   font-size: 11pt;
                   padding: 0 2cm 0 9cm;
@@ -448,11 +531,14 @@ const GestionActes = ({ dossiers, onClose }) => {
                   line-height: 1.8;
                   text-align: left;
                   padding-left: 1cm;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: baseline;
               }
               
               .mentions {
-                  margin-top: 3cm;
-                  margin-bottom: 0.8cm;
+                  margin-top: 0.8cm; /* Réduction de 1.5cm à 0.8cm */
+                  margin-bottom: 0.3cm; /* Réduction de 0.5cm à 0.3cm */
                   font-size: 11pt;
                   text-align: left;
                   padding-left: 2cm;
@@ -474,41 +560,38 @@ const GestionActes = ({ dossiers, onClose }) => {
               }
               
               .certification {
-                  margin-top: 0.5cm;
+                  margin-top: 0.2cm; /* Réduction de 0.3cm à 0.2cm */
                   text-align: right;
                   font-size: 11pt;
                   padding: 0 2cm;
               }
               
               .certification-text {
-                  margin-bottom: 0.8cm;
+                  margin-bottom: 0.4cm; /* Réduction de 0.8cm à 0.4cm */
                   line-height: 1.6;
               }
               
               .certification-location {
-                  margin-bottom: 0.5cm;
+                  margin-bottom: 0.3cm; /* Réduction de 0.5cm à 0.3cm */
                   font-weight: bold;
               }
               
               .signature-section {
-                  margin-top: -0.7cm;
+                  margin-top: -0.3cm; /* Réduction de l'espace négatif de -0.7cm à -0.3cm */
                   text-align: right;
                   font-size: 11pt;
                   padding-right: 2cm;
               }
               
               .timbre-section {
-                  margin-top: -4.7cm;
+                  margin-top: -0.5cm; /* Réduction de l'espace négatif de -1cm à -0.5cm */
                   text-align: left;
                   font-weight: bold;
                   font-size: 11pt;
                   padding-left: 2cm;
-                  margin-bottom: 5cm; /* Ajout de la marge de 5cm en bas */
+                  margin-bottom: 0.3cm; /* Réduction de l'espace en bas de 0.5cm à 0.3cm */
               }
               
-
-              
-              /* Informations importantes */
               .highlight-info {
                   font-weight: bold;
                   text-decoration: none;
@@ -516,7 +599,6 @@ const GestionActes = ({ dossiers, onClose }) => {
                   margin: 0 2px;
               }
               
-              /* Animation d'apparition */
               .document-container {
                   animation: fadeInUp 0.8s ease-out;
               }
@@ -551,8 +633,7 @@ const GestionActes = ({ dossiers, onClose }) => {
               </div>
               
               <div class="reference">
-                  N° ${acte.numeroActe || '65-001-COP/86'} du ${formatDate(acte.dateCreation)}<br>
-                  du Registre
+                  N° ${acte.numeroActe || '65-001-COP/86'} du ${formatDate(acte.dateCreation)}
                   <div class="separator">-------------</div>
               </div>
               
@@ -561,7 +642,6 @@ const GestionActes = ({ dossiers, onClose }) => {
                       NAISSANCE DE
                   </div>
                   <div class="subtitle">
-                      Du Registre des Actes de l'État Civil<br>
                       Pour l'année <span class="highlight-info">${currentYear}</span>
                   </div>
               </div>
@@ -572,31 +652,38 @@ const GestionActes = ({ dossiers, onClose }) => {
               
               <div class="content">
                   <div class="content-line">
-                      Le <span class="highlight-info">${formatDate(acte.dateCreation)}</span>…..................................................
+                      <span>Le <span class="highlight-info">${formatDate(acte.dateCreation)}</span></span>
+                      <span>…..................................................</span>
                   </div>
                   
                   <div class="content-line">
-                      À <span class="highlight-info">${acte.heureNaissance || getCurrentTime()}</span> heures…..................................................
+                      <span>À <span class="highlight-info">${acte.heureNaissance || getCurrentTime()}</span> heures</span>
+                      <span>…..................................................</span>
                   </div>
                   
                   <div class="content-line">
-                      Est né(e) à <span class="highlight-info">${dossier.lieuNaissance}</span>…..................................................
+                      <span>Est né(e) à <span class="highlight-info">${dossier.lieuNaissance}</span></span>
+                      <span>…..................................................</span>
                   </div>
                   
                   <div class="content-line">
-                      L'enfant <span class="highlight-info">${dossier.prenomUsager} ${dossier.nomUsager}</span>…..................................................
+                      <span>L'enfant <span class="highlight-info">${dossier.prenomUsager} ${dossier.nomUsager}</span></span>
+                      <span>…..................................................</span>
                   </div>
                   
                   <div class="content-line">
-                      De sexe <span class="highlight-info">${dossier.sexe || 'Non spécifié'}</span>…..................................................
+                      <span>De sexe <span class="highlight-info">${dossier.sexe || 'Non spécifié'}</span></span>
+                      <span>…..................................................</span>
                   </div>
                   
                   <div class="content-line">
-                      Fils/Fille de <span class="highlight-info">${acte.nomPere || '[Nom du père]'}</span>, <span class="highlight-info">${acte.professionPere || '[Profession]'}</span>…..................................................
+                      <span>Fils/Fille de <span class="highlight-info">${acte.nomPere || '[Nom du père]'}</span>, <span class="highlight-info">${acte.professionPere || '[Profession]'}</span></span>
+                      <span>…..................................................</span>
                   </div>
                   
                   <div class="content-line">
-                      Et de <span class="highlight-info">${acte.nomMere || '[Nom de la mère]'}</span>, <span class="highlight-info">${acte.professionMere || '[Profession]'}</span>, son épouse…..................................................
+                      <span>Et de <span class="highlight-info">${acte.nomMere || '[Nom de la mère]'}</span>, <span class="highlight-info">${acte.professionMere || '[Profession]'}</span>, son épouse</span>
+                      <span>…..................................................</span>
                   </div>
               </div>
               
@@ -635,59 +722,23 @@ const GestionActes = ({ dossiers, onClose }) => {
                   </div>
               </div>
               
-              <!-- Décalage de 3cm en bas de la certification -->
-              <div style="height: 3cm;"></div>
+              <div style="height: 0.5cm;"></div> <!-- Réduction de l'espace avant signature -->
               
               <div class="signature-section">
-                  L'Officier de l'État Civil<br><br><br>
-                  (Signature)<br><br><br>
+                  L'Officier de l'État Civil<br>
+                  (Signature)<br>
               </div>
               
               <div class="timbre-section">
-                  <strong>TIMBRE FISCAL</strong><br><br>
+                  <strong>TIMBRE FISCAL</strong><br>
                   <strong>SCEAU</strong>
               </div>
           </div>
-
-          <script>
-              function downloadAsPDF() {
-                  // Simulation du téléchargement PDF
-                  alert('📥 Fonctionnalité de téléchargement PDF\n\n' +
-                        'Pour télécharger ce document en PDF :\n' +
-                        '1. Utilisez Ctrl+P (ou Cmd+P sur Mac)\n' +
-                        '2. Sélectionnez "Enregistrer au format PDF"\n' +
-                        '3. Choisissez votre dossier de destination\n\n' +
-                        'Le document sera sauvegardé avec la mise en page officielle.');
-              }
-              
-              // Animation d'entrée retardée pour les éléments
-              document.addEventListener('DOMContentLoaded', function() {
-                  const highlights = document.querySelectorAll('.highlight-info');
-                  highlights.forEach((element, index) => {
-                      setTimeout(() => {
-                          element.style.animation = \`fadeInUp 0.5s ease-out \${index * 0.1}s both\`;
-                      }, 500);
-                  });
-              });
-              
-              // Effet de survol sur le document
-              const documentContainer = document.querySelector('.document-container');
-              documentContainer.addEventListener('mouseenter', function() {
-                  this.style.transform = 'scale(1.02)';
-                  this.style.boxShadow = '0 12px 40px rgba(0,0,0,0.15)';
-              });
-              
-              documentContainer.addEventListener('mouseleave', function() {
-                  this.style.transform = 'scale(1)';
-                  this.style.boxShadow = '0 8px 30px rgba(0,0,0,0.1)';
-              });
-          </script>
       </body>
       </html>
     `;
   };
 
-  // Nouvelle fonction pour générer l'acte consulaire selon le format spécifié
   const generateActeConsulaireHTML = (acte, dossier, formatDate, getCurrentTime, currentYear) => {
     return `
       <!DOCTYPE html>
@@ -726,7 +777,7 @@ const GestionActes = ({ dossiers, onClose }) => {
                   line-height: 1.4;
                   font-size: 11pt;
                   min-height: 29.7cm;
-                  padding-bottom: 25cm; /* Ajout de la marge de 25cm en bas (20cm + 5cm) */
+                  padding-bottom: 5cm; /* Ajout de 3cm d'espace en bas (2cm + 3cm) */
               }
               
               .document-container {
@@ -735,14 +786,14 @@ const GestionActes = ({ dossiers, onClose }) => {
                   box-shadow: 0 8px 30px rgba(0,0,0,0.1);
                   border-radius: 8px;
                   border: 1px solid #e0e0e0;
-                  margin-bottom: 25cm; /* Marge supplémentaire pour le conteneur (20cm + 5cm) */
+                  margin-bottom: 5cm; /* Ajout de 3cm d'espace en bas (2cm + 3cm) */
               }
               
               .header {
                   text-align: center;
-                  margin-bottom: 1cm;
+                  margin-bottom: 0.5cm; /* Réduction de 1cm à 0.5cm */
                   border-bottom: 2px solid #1a365d;
-                  padding-bottom: 0.5cm;
+                  padding-bottom: 0.3cm; /* Réduction de 0.5cm à 0.3cm */
               }
               
               .header-title {
@@ -777,7 +828,7 @@ const GestionActes = ({ dossiers, onClose }) => {
                   text-align: center;
                   font-size: 14pt;
                   font-weight: bold;
-                  margin: 1cm 0;
+                  margin: 0.5cm 0; /* Réduction de 1cm à 0.5cm */
                   text-decoration: underline;
                   color: #1a365d;
               }
@@ -786,13 +837,13 @@ const GestionActes = ({ dossiers, onClose }) => {
                   text-align: center;
                   font-size: 16pt;
                   font-weight: bold;
-                  margin: 0.5cm 0;
+                  margin: 0.3cm 0; /* Réduction de 0.5cm à 0.3cm */
                   color: #1a365d;
                   letter-spacing: 1px;
               }
               
               .content-section {
-                  margin: 1cm 0;
+                  margin: 0.5cm 0; /* Réduction de 1cm à 0.5cm */
                   padding: 0 1cm;
               }
               
@@ -816,8 +867,8 @@ const GestionActes = ({ dossiers, onClose }) => {
               }
               
               .mentions-section {
-                  margin-top: 1.5cm;
-                  padding: 0.5cm;
+                  margin-top: 0.8cm; /* Réduction de 1.5cm à 0.8cm */
+                  padding: 0.3cm; /* Réduction de 0.5cm à 0.3cm */
                   border: 1px solid #e2e8f0;
                   border-radius: 4px;
                   background-color: #f7fafc;
@@ -838,13 +889,13 @@ const GestionActes = ({ dossiers, onClose }) => {
               }
               
               .certification-section {
-                  margin-top: 2cm;
+                  margin-top: 0.5cm; /* Réduction de 1cm à 0.5cm */
                   text-align: right;
                   padding: 0 1cm;
               }
               
               .certification-text {
-                  margin-bottom: 0.5cm;
+                  margin-bottom: 0.3cm; /* Réduction de 0.5cm à 0.3cm */
                   line-height: 1.6;
                   font-size: 11pt;
               }
@@ -856,22 +907,22 @@ const GestionActes = ({ dossiers, onClose }) => {
               }
               
               .signature-section {
-                  margin-top: 1cm;
+                  margin-top: 0.5cm; /* Réduction de 1cm à 0.5cm */
                   text-align: right;
                   padding-right: 2cm;
               }
               
               .signature-line {
-                  margin-bottom: 0.5cm;
+                  margin-bottom: 0.3cm; /* Réduction de 0.5cm à 0.3cm */
                   font-size: 11pt;
               }
               
               .stamp-section {
                   position: absolute;
-                  bottom: 3cm;
+                  bottom: 0.5cm; /* Réduction de l'espace en bas de 1cm à 0.5cm */
                   left: 2cm;
                   text-align: center;
-                  margin-bottom: 5cm; /* Ajout de la marge de 5cm en bas */
+                  margin-bottom: 0.5cm; /* Réduction de l'espace en bas de 1cm à 0.5cm */
               }
               
               .stamp-box {
@@ -903,12 +954,12 @@ const GestionActes = ({ dossiers, onClose }) => {
               <div class="header">
                   <div class="header-title">RÉPUBLIQUE DE CÔTE D'IVOIRE</div>
                   <div class="header-subtitle">MINISTÈRE DES AFFAIRES ÉTRANGÈRES</div>
-                  <div class="header-subtitle">CIRCONSCRIPTION CONSULAIRE DE DANEMARK</div>
-                  <div class="header-address">Centre de Copenhague</div>
+                  <div class="header-subtitle">CIRCONSCRIPTION CONSULAIRE DE ${acte.circonscriptionConsulaire || 'DANEMARK'}</div>
+                  <div class="header-address">Centre de ${acte.centreDe || 'COPENHAGUE'}</div>
               </div>
               
               <div class="document-number">
-                  N° ${acte.numeroActe || '65-001-COP/86'} du ${formatDate(acte.dateCreation)}
+                  N° ${acte.numeroRegistre || acte.numeroActe || '65-001-COP/86'} du ${formatDate(acte.dateCreation)}
               </div>
               
               <div class="main-title">
@@ -982,14 +1033,13 @@ const GestionActes = ({ dossiers, onClose }) => {
                   </div>
               </div>
               
-              <!-- Décalage de 3cm en bas de la certification -->
-              <div style="height: 3cm;"></div>
+              <div style="height: 1cm;"></div> <!-- Réduction de l'espace -->
               
               <div class="signature-section">
                   <div class="signature-line">L'Officier de l'État Civil</div>
                   <div class="signature-line">Consulat de Côte d'Ivoire</div>
                   <div class="signature-line">à Copenhague</div>
-                  <br><br><br>
+                  <br><br>
                   <div class="signature-line">(Signature et cachet)</div>
               </div>
               
@@ -1005,46 +1055,140 @@ const GestionActes = ({ dossiers, onClose }) => {
     `;
   };
 
-  const generateActePDF = async (acte) => {
+  const generatePDFPreview = async (acte) => {
     try {
       const acteHTML = generateActeHTML(acte);
       
-      // Créer un élément temporaire pour le HTML
+      // Créer un élément temporaire avec les dimensions A4
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = acteHTML;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm'; // Largeur A4
+      tempDiv.style.height = '297mm'; // Hauteur A4
+      tempDiv.style.margin = '0';
+      tempDiv.style.padding = '0';
+      tempDiv.style.backgroundColor = 'white';
       document.body.appendChild(tempDiv);
       
-      // Convertir HTML en canvas
+      // Configuration optimisée pour A4
       const canvas = await html2canvas(tempDiv, {
-        scale: 2,
+        scale: 1, // Qualité réduite pour la prévisualisation
         useCORS: true,
         allowTaint: true,
-        width: 794,
-        height: 1123
+        backgroundColor: '#ffffff',
+        width: 794, // Largeur A4 en pixels (210mm)
+        height: 1123, // Hauteur A4 en pixels (297mm)
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
       });
       
-      // Créer le PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/png', 0.8);
       
-      // Calculer les dimensions pour A4
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      // Calculer les dimensions A4
+      const a4Width = 210; // mm
+      const a4Height = 297; // mm
+      const aspectRatio = a4Height / a4Width; // 1.414 (√2)
+      
+      setPdfPreviewData({
+        imgData,
+        dimensions: {
+          width: a4Width,
+          height: a4Height,
+          aspectRatio
+        },
+        acte: acte
+      });
+      
+      setShowPDFPreview(true);
+      
+    } catch (error) {
+      console.error('Erreur lors de la génération de la prévisualisation:', error);
+      if (window.showNotification) {
+        window.showNotification('Erreur lors de la génération de la prévisualisation', 'error');
+      }
+    } finally {
+      // Nettoyer l'élément temporaire
+      const tempDiv = document.querySelector('div[style*="-9999px"]');
+      if (tempDiv) {
+        document.body.removeChild(tempDiv);
+      }
+    }
+  };
+
+  const generateActePDF = async (acte) => {
+    try {
+      const acteHTML = generateActeHTML(acte);
+      
+      // Créer un élément temporaire avec les dimensions A4
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = acteHTML;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm'; // Largeur A4
+      tempDiv.style.height = '297mm'; // Hauteur A4
+      tempDiv.style.margin = '0';
+      tempDiv.style.padding = '0';
+      tempDiv.style.backgroundColor = 'white';
+      document.body.appendChild(tempDiv);
+      
+      // Configuration optimisée pour A4
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2, // Qualité élevée
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        width: 794, // Largeur A4 en pixels (210mm)
+        height: 1123, // Hauteur A4 en pixels (297mm)
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
+      });
+      
+      // Créer le PDF en format A4
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      
+      // Dimensions A4 standard
+      const pdfWidth = 210; // mm
+      const pdfHeight = 297; // mm
+      
+      // Calculer les proportions pour s'adapter parfaitement à A4
       const imgWidth = pdfWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      // Ajouter l'image au PDF
+      // Ajouter l'image au PDF en format A4
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       
-      // Sauvegarder le PDF
+      // Nom du fichier
       const dossier = acte.dossierInfo;
-      pdf.save(`${acte.typeActe.replace(/\s+/g, '-')}-${dossier.nomUsager}-${dossier.prenomUsager}.pdf`);
+      const fileName = `${acte.typeActe.replace(/\s+/g, '-')}-${dossier.nomUsager}-${dossier.prenomUsager}.pdf`;
+      
+      // Sauvegarder le PDF
+      pdf.save(fileName);
+      
+      // Notification de succès
+      if (window.showNotification) {
+        window.showNotification('PDF généré avec succès en format A4 !', 'success');
+      }
       
     } catch (error) {
       console.error('Erreur lors de la génération du PDF:', error);
-      alert('Erreur lors de la génération du PDF');
+      if (window.showNotification) {
+        window.showNotification('Erreur lors de la génération du PDF', 'error');
+      } else {
+        alert('Erreur lors de la génération du PDF');
+      }
     } finally {
       // Nettoyer l'élément temporaire
       const tempDiv = document.querySelector('div[style*="-9999px"]');
@@ -1084,194 +1228,431 @@ const GestionActes = ({ dossiers, onClose }) => {
     alert('Acte dupliqué avec succès !');
   };
 
-  const filteredActes = actes.filter(acte => {
-    const matchesSearch = !searchTerm || 
-      (acte.dossierInfo?.nomUsager && acte.dossierInfo.nomUsager.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (acte.dossierInfo?.prenomUsager && acte.dossierInfo.prenomUsager.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (acte.numeroActe && acte.numeroActe.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesType = !filterType || acte.typeActe === filterType;
-    
-    return matchesSearch && matchesType;
-  });
-
   return (
-    <div className="space-y-6" style={{ marginTop: '-10cm' }}>
-      {/* En-tête */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gestion des Actes</h2>
-          <p className="text-gray-600">Créez et gérez les actes d'état civil</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowDossierSelection(true)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-            disabled={dossiers.filter(d => canCreateActe(d.statut)).length === 0}
-          >
-            <Plus className="w-4 h-4" />
-            Acte Consulaire (Nouveau Format)
-          </button>
-          <button
-            onClick={() => setShowOriginalForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            disabled={dossiers.filter(d => canCreateActe(d.statut)).length === 0}
-          >
-            <FileText className="w-4 h-4" />
-            Acte Original (Format Classique)
-          </button>
-        </div>
-        
-        {/* Indicateur des dossiers éligibles */}
-        <div className="text-sm text-gray-600">
-          {dossiers.filter(d => canCreateActe(d.statut)).length > 0 ? (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>{dossiers.filter(d => canCreateActe(d.statut)).length} dossier(s) éligible(s) pour création d'acte</span>
+    <div className="space-y-6">
+      {/* En-tête avec statistiques */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Gestion des Actes</h2>
+            <p className="text-gray-600">Créez et gérez les actes d'état civil avec facilité</p>
+          </div>
+          
+          {/* Statistiques */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full lg:w-auto">
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Actes</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.totalActes}</p>
+                </div>
+                <FileText className="w-8 h-8 text-blue-500" />
+              </div>
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              <span>Aucun dossier éligible (statut doit être "Terminé" ou "Prêt pour création d'acte")</span>
+            
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Consulaires</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.actesConsulaires}</p>
+                </div>
+                <FileCheck className="w-8 h-8 text-green-500" />
+              </div>
             </div>
-          )}
+            
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Originaux</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.actesOriginaux}</p>
+                </div>
+                <FilePlus className="w-8 h-8 text-purple-500" />
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Éligibles</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.dossiersEligibles}</p>
+                </div>
+                <CheckCircle className="w-8 h-8 text-orange-500" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Barre de recherche et filtres */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+      {/* Actions principales */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => setShowDossierSelection(true)}
+              className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 flex items-center gap-2 shadow-lg transition-all duration-200 transform hover:scale-105"
+              disabled={dossiers.filter(d => canCreateActe(d.statut)).length === 0}
+            >
+              <Plus className="w-5 h-5" />
+              Acte Consulaire (Nouveau Format)
+            </button>
+            
+            <button
+              onClick={() => setShowOriginalForm(true)}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 shadow-lg transition-all duration-200 transform hover:scale-105"
+              disabled={dossiers.filter(d => canCreateActe(d.statut)).length === 0}
+            >
+              <FileText className="w-5 h-5" />
+              Acte Original (Format Classique)
+            </button>
+          </div>
+          
+          {/* Indicateur des dossiers éligibles */}
+          <div className="flex items-center gap-3">
+            {dossiers.filter(d => canCreateActe(d.statut)).length > 0 ? (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-green-800">
+                  {dossiers.filter(d => canCreateActe(d.statut)).length} dossier(s) éligible(s)
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-4 py-2">
+                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                <span className="text-sm font-medium text-orange-800">
+                  Aucun dossier éligible
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Barre de recherche et filtres améliorés */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Recherche */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
               placeholder="Rechercher par nom, prénom, numéro d'acte..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
+              className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full transition-all duration-200"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           
-          <select
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <option value="">Tous les types</option>
-            {typesActes.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
+          {/* Filtre par type */}
+          <div className="relative">
+            <FilterIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <select
+              className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full appearance-none bg-white transition-all duration-200"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
+              <option value="">Tous les types</option>
+              {typesActes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Filtre par statut */}
+          <div className="relative">
+            <Settings className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <select
+              className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full appearance-none bg-white transition-all duration-200"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              {statusOptions.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Tri */}
+          <div className="flex gap-2">
+            <select
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="date">Date</option>
+              <option value="name">Nom</option>
+              <option value="type">Type</option>
+            </select>
+            
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200"
+              title={`Trier par ordre ${sortOrder === 'asc' ? 'décroissant' : 'croissant'}`}
+            >
+              <RefreshCw className={`w-5 h-5 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+        
+        {/* Mode d'affichage */}
+        <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600">Mode d'affichage:</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                  viewMode === 'table' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Tableau
+              </button>
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                  viewMode === 'cards' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Cartes
+              </button>
+            </div>
+          </div>
+          
+          <div className="text-sm text-gray-500">
+            {filteredAndSortedActes.length} acte(s) trouvé(s)
+          </div>
         </div>
       </div>
 
       {/* Liste des actes */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Acte</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usager</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut Dossier</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Officier</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Observations</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredActes.map(acte => (
-                <tr key={acte.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {acte.numeroActe}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {acte.dossierInfo?.nomUsager} {acte.dossierInfo?.prenomUsager}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {acte.typeActe}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(acte.dossierInfo?.statut || 'En cours')}`}>
+      {viewMode === 'table' ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">N° Acte</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Usager</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Statut</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Officier</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAndSortedActes.map(acte => (
+                  <tr key={acte.id} className="hover:bg-blue-50 transition-colors duration-200">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-semibold text-gray-900">{acte.numeroActe}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 text-gray-400 mr-2" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {acte.dossierInfo?.nomUsager} {acte.dossierInfo?.prenomUsager}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {acte.dossierInfo?.numeroSuivi}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <FileText className="w-4 h-4 text-blue-500 mr-2" />
+                        <span className="text-sm text-gray-900">{acte.typeActe}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        {getStatusIcon(acte.dossierInfo?.statut || 'En cours')}
+                        <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(acte.dossierInfo?.statut || 'En cours')}`}>
+                          {acte.dossierInfo?.statut || 'En cours'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="text-sm text-gray-900">
+                          {new Date(acte.dateCreation).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="text-sm text-gray-900">{acte.officier}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedActe(acte)}
+                          className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-lg transition-all duration-200"
+                          title="Voir l'acte"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => generateActePDF(acte)}
+                          className="p-2 text-green-600 hover:text-green-900 hover:bg-green-100 rounded-lg transition-all duration-200"
+                          title="Télécharger PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => printActe(acte)}
+                          className="p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-100 rounded-lg transition-all duration-200"
+                          title="Imprimer"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(acte)}
+                          className="p-2 text-orange-600 hover:text-orange-900 hover:bg-orange-100 rounded-lg transition-all duration-200"
+                          title="Modifier"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => duplicateActe(acte)}
+                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-100 rounded-lg transition-all duration-200"
+                          title="Dupliquer"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(acte.id)}
+                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-100 rounded-lg transition-all duration-200"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {filteredAndSortedActes.length === 0 && (
+            <div className="text-center py-12">
+              <FileX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun acte trouvé</h3>
+              <p className="text-gray-500">Aucun acte ne correspond à vos critères de recherche.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        // Vue en cartes
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedActes.map(acte => (
+            <div key={acte.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-200 overflow-hidden">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center">
+                    {getStatusIcon(acte.dossierInfo?.statut || 'En cours')}
+                    <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(acte.dossierInfo?.statut || 'En cours')}`}>
                       {acte.dossierInfo?.statut || 'En cours'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  </div>
+                  <div className="text-xs text-gray-500">
                     {new Date(acte.dateCreation).toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {acte.officier}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
-                    <div className="space-y-1">
-                      {acte.observations && (
-                        <div className="text-xs">
-                          <span className="font-medium text-blue-600">Auto:</span>
-                          <span className="ml-1">{acte.observations}</span>
-                        </div>
-                      )}
-                      {acte.dossierInfo?.observationPersonnalisee && (
-                        <div className="text-xs">
-                          <span className="font-medium text-green-600">Perso:</span>
-                          <span className="ml-1">{acte.dossierInfo.observationPersonnalisee}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedActe(acte)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Voir l'acte"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => generateActePDF(acte)}
-                        className="text-green-600 hover:text-green-900"
-                        title="Télécharger PDF"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => printActe(acte)}
-                        className="text-purple-600 hover:text-purple-900"
-                        title="Imprimer"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(acte)}
-                        className="text-orange-600 hover:text-orange-900"
-                        title="Modifier"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => duplicateActe(acte)}
-                        className="text-indigo-600 hover:text-indigo-900"
-                        title="Dupliquer"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(acte.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                    {acte.dossierInfo?.nomUsager} {acte.dossierInfo?.prenomUsager}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-2">{acte.numeroActe}</p>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <FileText className="w-4 h-4 mr-1" />
+                    {acte.typeActe}
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <div className="flex items-center text-sm text-gray-600 mb-1">
+                    <User className="w-4 h-4 mr-2" />
+                    Officier: {acte.officier}
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    {acte.lieuCreation}
+                  </div>
+                </div>
+                
+                {acte.observations && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-800">{acte.observations}</p>
+                  </div>
+                )}
+                
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => setSelectedActe(acte)}
+                    className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-lg transition-all duration-200"
+                    title="Voir l'acte"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => generateActePDF(acte)}
+                    className="p-2 text-green-600 hover:text-green-900 hover:bg-green-100 rounded-lg transition-all duration-200"
+                    title="Télécharger PDF"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => printActe(acte)}
+                    className="p-2 text-purple-600 hover:text-purple-900 hover:bg-purple-100 rounded-lg transition-all duration-200"
+                    title="Imprimer"
+                  >
+                    <Printer className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleEdit(acte)}
+                    className="p-2 text-orange-600 hover:text-orange-900 hover:bg-orange-100 rounded-lg transition-all duration-200"
+                    title="Modifier"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => duplicateActe(acte)}
+                    className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-100 rounded-lg transition-all duration-200"
+                    title="Dupliquer"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(acte.id)}
+                    className="p-2 text-red-600 hover:text-red-900 hover:bg-red-100 rounded-lg transition-all duration-200"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {filteredAndSortedActes.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <FileX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun acte trouvé</h3>
+              <p className="text-gray-500">Aucun acte ne correspond à vos critères de recherche.</p>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Modal de création/édition d'acte */}
       {showForm && (
@@ -1290,7 +1671,7 @@ const GestionActes = ({ dossiers, onClose }) => {
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <AlertTriangle className="w-6 h-6" />
+                <X className="w-6 h-6" />
               </button>
             </div>
             
@@ -1618,24 +1999,87 @@ const GestionActes = ({ dossiers, onClose }) => {
         </div>
       )}
 
-      {/* Modal de prévisualisation */}
+      {/* Modal de prévisualisation améliorée */}
       {selectedActe && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Prévisualisation - {selectedActe.typeActe}
-              </h3>
-              <button
-                onClick={() => setSelectedActe(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[95vh] flex flex-col">
+            {/* En-tête avec actions flottantes */}
+            <div className="p-6 border-b flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center gap-4">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Prévisualisation - {selectedActe.typeActe}
+                </h3>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <FileText className="w-4 h-4" />
+                  <span>{selectedActe.numeroActe}</span>
+                </div>
+              </div>
+              
+              {/* Actions principales dans l'en-tête */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => generatePDFPreview(selectedActe)}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 flex items-center gap-2 shadow-lg transition-all duration-200 transform hover:scale-105"
+                  title="Prévisualiser le PDF"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span className="hidden sm:inline">Prévisualiser PDF</span>
+                </button>
+                
+                <button
+                  onClick={() => generateActePDF(selectedActe)}
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 flex items-center gap-2 shadow-lg transition-all duration-200 transform hover:scale-105"
+                  title="Télécharger le PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Télécharger PDF</span>
+                </button>
+                
+                <button
+                  onClick={() => printActe(selectedActe)}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 shadow-lg transition-all duration-200 transform hover:scale-105"
+                  title="Imprimer l'acte"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span className="hidden sm:inline">Imprimer</span>
+                </button>
+                
+                <button
+                  onClick={() => setSelectedActe(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                  title="Fermer"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
             
-            <div className="p-6">
+            {/* Informations de l'acte */}
+            <div className="px-6 py-3 bg-gray-50 border-b">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span><strong>Usager:</strong> {selectedActe.dossierInfo?.nomUsager} {selectedActe.dossierInfo?.prenomUsager}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span><strong>Date:</strong> {new Date(selectedActe.dateCreation).toLocaleDateString('fr-FR')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span><strong>Lieu:</strong> {selectedActe.lieuCreation}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span><strong>Officier:</strong> {selectedActe.officier}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Contenu de l'acte avec scroll */}
+            <div className="flex-1 overflow-y-auto p-6">
               <div 
+                className="bg-white border border-gray-200 rounded-lg shadow-sm"
                 dangerouslySetInnerHTML={{ __html: generateActeHTML(selectedActe) }} 
                 onError={() => {
                   if (window.showNotification) {
@@ -1645,21 +2089,28 @@ const GestionActes = ({ dossiers, onClose }) => {
               />
             </div>
             
-            <div className="p-6 border-t flex justify-end gap-3">
-              <button
-                onClick={() => generateActePDF(selectedActe)}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Télécharger PDF
-              </button>
-              <button
-                onClick={() => printActe(selectedActe)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Printer className="w-4 h-4" />
-                Imprimer
-              </button>
+            {/* Barre d'actions flottante en bas (optionnelle) */}
+            <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
+              <div className="text-sm text-gray-500">
+                <span className="font-medium">Actions rapides:</span> Utilisez les boutons en haut à droite pour télécharger ou imprimer
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => generateActePDF(selectedActe)}
+                  className="px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 text-sm flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" />
+                  PDF
+                </button>
+                <button
+                  onClick={() => printActe(selectedActe)}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 text-sm flex items-center gap-1"
+                >
+                  <Printer className="w-3 h-3" />
+                  Imprimer
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1733,7 +2184,7 @@ const GestionActes = ({ dossiers, onClose }) => {
                           <h4 className="font-medium text-gray-900">
                             {dossier.nomUsager} {dossier.prenomUsager}
                           </h4>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(dossier.statut)}`}>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(dossier.statut)}`}>
                             {dossier.statut}
                           </span>
                         </div>
@@ -1789,6 +2240,141 @@ const GestionActes = ({ dossiers, onClose }) => {
         </div>
       )}
 
+      {/* Modal de prévisualisation PDF */}
+      {showPDFPreview && pdfPreviewData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] flex flex-col">
+            {/* En-tête */}
+            <div className="p-6 border-b flex justify-between items-center bg-gradient-to-r from-purple-50 to-indigo-50">
+              <div className="flex items-center gap-4">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Prévisualisation PDF - {pdfPreviewData.acte.typeActe}
+                </h3>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <FileText className="w-4 h-4" />
+                  <span>Format A4 (210×297mm)</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => generateActePDF(pdfPreviewData.acte)}
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 flex items-center gap-2 shadow-lg transition-all duration-200"
+                  title="Télécharger le PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Télécharger PDF</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowPDFPreview(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                  title="Fermer"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Informations du PDF */}
+            <div className="px-6 py-3 bg-gray-50 border-b">
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span><strong>Usager:</strong> {pdfPreviewData.acte.dossierInfo?.nomUsager} {pdfPreviewData.acte.dossierInfo?.prenomUsager}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span><strong>Date:</strong> {new Date(pdfPreviewData.acte.dateCreation).toLocaleDateString('fr-FR')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span><strong>Lieu:</strong> {pdfPreviewData.acte.lieuCreation}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span><strong>Officier:</strong> {pdfPreviewData.acte.officier}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Prévisualisation du PDF */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex justify-center">
+                <div className="bg-white border-2 border-gray-300 rounded-lg shadow-lg p-4">
+                  <div className="text-center mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Format A4 - Prévisualisation</h4>
+                    <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+                      <span>Largeur: {pdfPreviewData.dimensions.width}mm</span>
+                      <span>Hauteur: {pdfPreviewData.dimensions.height}mm</span>
+                      <span>Ratio: 1:{pdfPreviewData.dimensions.aspectRatio.toFixed(3)}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Image du PDF avec dimensions A4 */}
+                  <div className="flex justify-center">
+                    <div 
+                      className="border border-gray-400 rounded shadow-lg overflow-hidden"
+                      style={{
+                        width: '400px', // Taille fixe pour la prévisualisation
+                        height: `${400 * pdfPreviewData.dimensions.aspectRatio}px`,
+                        maxHeight: '600px'
+                      }}
+                    >
+                      <img 
+                        src={pdfPreviewData.imgData} 
+                        alt="Prévisualisation PDF"
+                        className="w-full h-full object-contain"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Informations techniques */}
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <h5 className="text-sm font-medium text-blue-900 mb-2">Informations techniques du PDF :</h5>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-blue-800">
+                      <div><strong>Format:</strong> A4 Portrait</div>
+                      <div><strong>Dimensions:</strong> 210×297mm</div>
+                      <div><strong>Résolution:</strong> Haute qualité</div>
+                      <div><strong>Compression:</strong> Optimisée</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Barre d'actions */}
+            <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
+              <div className="text-sm text-gray-500">
+                <span className="font-medium">Prévisualisation:</span> Le PDF sera généré exactement comme affiché ci-dessus
+              </div>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => generateActePDF(pdfPreviewData.acte)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Télécharger PDF
+                </button>
+                <button
+                  onClick={() => printActe(pdfPreviewData.acte)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  Imprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Composant CreationActes */}
       {showCreationActe && selectedDossier && (
         <CreationActes
@@ -1803,4 +2389,4 @@ const GestionActes = ({ dossiers, onClose }) => {
   );
 };
 
-export default GestionActes; 
+export default GestionActes;
